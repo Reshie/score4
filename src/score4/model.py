@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from typing import Sequence
 
 try:
@@ -76,13 +77,84 @@ def encode_batch(states: Sequence[Score4State], device: str | torch.device) -> T
 
 
 class NetworkEvaluator:
-    def __init__(self, model: AlphaZeroNet, device: str | torch.device = "cpu") -> None:
+    def __init__(
+        self,
+        model: AlphaZeroNet,
+        device: str | torch.device = "cpu",
+        cache_size: int = 0,
+    ) -> None:
         self.model = model
         self.device = torch.device(device)
+        self.cache_size = max(0, cache_size)
+        self.cache_hits = 0
+        self.cache_misses = 0
+        self._cache: OrderedDict[Score4State, tuple[list[float], float]] = (
+            OrderedDict()
+        )
+        self.model.eval()
 
     def __call__(self, state: Score4State) -> tuple[list[float], float]:
-        self.model.eval()
-        with torch.no_grad():
-            logits, value = self.model(encode_batch([state], self.device))
-            policy = torch.softmax(logits[0], dim=0).detach().cpu().tolist()
-            return policy, float(value[0].detach().cpu().item())
+        return self.evaluate_batch([state])[0]
+
+    def evaluate_batch(
+        self,
+        states: Sequence[Score4State],
+    ) -> list[tuple[list[float], float]]:
+        results: list[tuple[list[float], float] | None] = [None] * len(states)
+        missing_states: list[Score4State] = []
+        missing_indexes: list[int] = []
+
+        for index, state in enumerate(states):
+            cached = self._cache.get(state)
+            if cached is None:
+                self.cache_misses += 1
+                missing_states.append(state)
+                missing_indexes.append(index)
+                continue
+            self.cache_hits += 1
+            self._cache.move_to_end(state)
+            policy, value = cached
+            results[index] = (list(policy), value)
+
+        if missing_states:
+            with torch.inference_mode():
+                logits, values = self.model(encode_batch(missing_states, self.device))
+                policies = torch.softmax(logits, dim=1).detach().cpu().tolist()
+                value_list = values.detach().cpu().tolist()
+
+            for index, state, policy, value in zip(
+                missing_indexes,
+                missing_states,
+                policies,
+                value_list,
+            ):
+                result = (policy, float(value))
+                results[index] = result
+                self._remember(state, result)
+
+        finalized: list[tuple[list[float], float]] = []
+        for result in results:
+            if result is None:
+                raise RuntimeError("missing network evaluation result")
+            policy, value = result
+            finalized.append((list(policy), value))
+        return finalized
+
+    def _remember(
+        self,
+        state: Score4State,
+        result: tuple[list[float], float],
+    ) -> None:
+        if self.cache_size:
+            self._cache[state] = result
+            self._cache.move_to_end(state)
+            while len(self._cache) > self.cache_size:
+                self._cache.popitem(last=False)
+
+    def cache_info(self) -> dict[str, int]:
+        return {
+            "size": len(self._cache),
+            "max_size": self.cache_size,
+            "hits": self.cache_hits,
+            "misses": self.cache_misses,
+        }

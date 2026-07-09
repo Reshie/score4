@@ -36,6 +36,25 @@ class MCTSTests(unittest.TestCase):
 
         self.assertEqual(result.best_action(), 0)
 
+    def test_can_reuse_child_tree_for_next_state(self) -> None:
+        state = Score4State.new()
+        mcts = MCTS(
+            uniform_evaluator,
+            MCTSConfig(simulations=8),
+            rng=random.Random(0),
+        )
+        result = mcts.search(state)
+        action = result.best_action()
+        child = result.child_for(action)
+
+        self.assertIsNotNone(child)
+
+        next_result = mcts.search(state.play(action), root=child)
+        policy = next_result.policy()
+
+        self.assertAlmostEqual(sum(policy), 1.0)
+        self.assertEqual(len(policy), ACTION_SIZE)
+
 
 if __name__ == "__main__":
     unittest.main()

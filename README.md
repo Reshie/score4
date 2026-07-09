@@ -23,7 +23,7 @@ PyTorch のインストール方法を細かく指定したい場合は、先に
 ## テスト
 
 ```powershell
-python -m unittest
+python -m unittest discover -s tests
 ```
 
 ## 学習の試運転
@@ -45,6 +45,12 @@ python -m score4.train --iterations 100 --games-per-iteration 64 --simulations 2
 ```powershell
 python -m score4.train --resume runs/score4/checkpoint_0010.pt
 ```
+
+学習中は自己対局と train step の進捗バーが表示されます。終了後は同じディレクトリに `metrics.csv` と `training_progress.svg` が保存され、loss や先手スコアの推移を確認できます。
+
+自己対局は既定で複数ゲームを同時に進める batch MCTS を使い、network 評価をまとめて GPU に送ります。並列ゲーム数は `--self-play-batch-size` で指定でき、既定は `32` です。従来の 1 ゲームずつの自己対局に戻す場合は `--self-play-batch-size 1` を指定してください。
+
+network 評価キャッシュも既定で有効です。メモリを抑えたい場合は `--eval-cache-size 0` を指定してください。MCTS の探索木再利用も試したい場合は `--reuse-tree` を追加できます。
 
 ## モデルと対戦
 
