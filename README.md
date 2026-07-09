@@ -43,7 +43,7 @@ python -m score4.train --iterations 100 --games-per-iteration 64 --simulations 2
 チェックポイントは既定で `runs/score4/checkpoint_XXXX.pt` に保存されます。途中から再開する場合:
 
 ```powershell
-python -m score4.train --resume runs/score4/checkpoint_0010.pt
+python -m score4.train --resume runs/score4/checkpoint_XXXX.pt
 ```
 
 学習中は自己対局と train step の進捗バーが表示されます。終了後は同じディレクトリに `metrics.csv` と `training_progress.svg` が保存され、loss や先手スコアの推移を確認できます。
@@ -57,13 +57,21 @@ network 評価キャッシュも既定で有効です。メモリを抑えたい
 学習済み checkpoint と対戦できます。
 
 ```powershell
-python -m score4.play --checkpoint runs/score4/checkpoint_0002.pt --simulations 100
+python -m score4.play --checkpoint runs/score4/checkpoint_XXXX.pt --simulations 100
 ```
+
+3D の Web 版でも対戦できます。学習済み checkpoint を読み込んだローカルサーバーを起動して、表示された URL をブラウザで開いてください。
+
+```powershell
+python -m score4.web_app --checkpoint runs/score4/checkpoint_XXXX.pt --simulations 120
+```
+
+Web 版の AI はサーバー側の PyTorch モデルと MCTS を使います。画面の AI 強度は MCTS の simulation 数に対応します。
 
 入力は `0..15` の列番号、または `x y` の座標です。後手で遊ぶ場合:
 
 ```powershell
-python -m score4.play --checkpoint runs/score4/checkpoint_0002.pt --human second
+python -m score4.play --checkpoint runs/score4/checkpoint_XXXX.pt --human second
 ```
 
 探索を強くしたい場合は `--simulations` を増やしてください。

@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Score Four 3D</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="scene-shell" aria-label="Score Four 3D board">
+        <canvas id="board"></canvas>
+      </section>
+
+      <header class="hud">
+        <div class="brand">
+          <span class="brand-mark" aria-hidden="true"></span>
+          <div>
+            <h1>Score Four 3D</h1>
+            <p id="status">あなたの手番</p>
+          </div>
+        </div>
+
+        <div class="stats" aria-label="Game status">
+          <span><b id="move-count">0</b> 手</span>
+          <span><b id="human-score">0</b> - <b id="ai-score">0</b></span>
+        </div>
+      </header>
+
+      <nav class="controls" aria-label="Game controls">
+        <button id="new-game" type="button">New</button>
+        <button id="undo" type="button">Undo</button>
+        <label>
+          <span>先手</span>
+          <select id="first-player">
+            <option value="human">あなた</option>
+            <option value="ai">AI</option>
+          </select>
+        </label>
+        <label>
+          <span>AI</span>
+          <select id="difficulty">
+            <option value="normal">Normal</option>
+            <option value="hard" selected>Hard</option>
+            <option value="fast">Fast</option>
+          </select>
+        </label>
+      </nav>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
