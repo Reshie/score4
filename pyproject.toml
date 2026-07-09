@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "score4-alphazero"
+version = "0.1.0"
+description = "AlphaZero-style reinforcement learning for 4x4x4 Score Four."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+train = [
+  "torch>=2.3",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
