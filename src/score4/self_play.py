@@ -17,6 +17,15 @@ from score4.mcts import (
     select_edge,
 )
 
+try:
+    from score4 import _self_play_cpp
+except ImportError:  # Native extension is optional.
+    _self_play_cpp = None
+
+
+def native_self_play_available() -> bool:
+    return _self_play_cpp is not None
+
 
 @dataclass(frozen=True)
 class TrainingExample:
@@ -93,6 +102,17 @@ def play_games_batched(
     rng: random.Random | None = None,
 ) -> list[list[TrainingExample]]:
     rng = rng or random.Random()
+    if _self_play_cpp is not None and hasattr(evaluator, "evaluate_batch"):
+        return _self_play_cpp.play_games_batched(evaluator, config, games, rng)
+    return _play_games_batched_python(evaluator, config, games, rng)
+
+
+def _play_games_batched_python(
+    evaluator: Evaluator,
+    config: SelfPlayConfig,
+    games: int,
+    rng: random.Random,
+) -> list[list[TrainingExample]]:
     mcts_config = MCTSConfig(
         simulations=config.simulations,
         c_puct=config.c_puct,

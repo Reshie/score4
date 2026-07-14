@@ -14,6 +14,9 @@ dependencies = []
 train = [
   "torch>=2.3",
 ]
+dev = [
+  "pytest>=8",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

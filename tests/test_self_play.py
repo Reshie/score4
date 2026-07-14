@@ -3,7 +3,11 @@ import unittest
 from typing import Sequence
 
 from score4.game import ACTION_SIZE, Score4State
-from score4.self_play import SelfPlayConfig, play_games_batched
+from score4.self_play import (
+    SelfPlayConfig,
+    native_self_play_available,
+    play_games_batched,
+)
 
 
 class BatchUniformEvaluator:
@@ -25,6 +29,9 @@ class BatchUniformEvaluator:
 
 
 class BatchedSelfPlayTests(unittest.TestCase):
+    def test_native_backend_status_is_boolean(self) -> None:
+        self.assertIsInstance(native_self_play_available(), bool)
+
     def test_play_games_batched_returns_one_history_per_game(self) -> None:
         evaluator = BatchUniformEvaluator()
 

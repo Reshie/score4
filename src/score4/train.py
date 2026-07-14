@@ -24,6 +24,7 @@ from score4.model import AlphaZeroNet, NetworkEvaluator
 from score4.self_play import (
     SelfPlayConfig,
     TrainingExample,
+    native_self_play_available,
     play_game,
     play_games_batched,
 )
@@ -226,7 +227,8 @@ def main(argv: list[str] | None = None) -> None:
 
     print(
         f"device={device}, replay={len(replay)}, "
-        f"start_iteration={start_iteration}, checkpoints={checkpoint_dir}"
+        f"start_iteration={start_iteration}, checkpoints={checkpoint_dir}, "
+        f"self_play_backend={'cpp' if native_self_play_available() else 'python'}"
     )
     run_started_at = time.perf_counter()
 
