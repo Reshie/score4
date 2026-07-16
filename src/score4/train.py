@@ -210,6 +210,7 @@ def main(argv: list[str] | None = None) -> None:
         dirichlet_alpha=args.dirichlet_alpha,
         exploration_fraction=args.exploration_fraction,
         reuse_tree=args.reuse_tree,
+        mcts_threads=args.mcts_threads,
     )
     checkpoint_dir = Path(args.checkpoint_dir)
     checkpoint_dir.mkdir(parents=True, exist_ok=True)
@@ -386,7 +387,6 @@ def main(argv: list[str] | None = None) -> None:
         )
         history.append(record)
         _write_training_history(history, metrics_path)
-        _write_training_chart(history, chart_path)
         print(
             f"iteration={iteration} elapsed="
             f"{_format_duration(record.elapsed_seconds)}"
@@ -422,6 +422,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--eval-cache-size", type=int, default=100_000)
     parser.add_argument("--self-play-batch-size", type=int, default=32)
     parser.add_argument("--reuse-tree", action="store_true")
+    parser.add_argument(
+        "--mcts-threads",
+        type=int,
+        default=0,
+        help=(
+            "CPU threads used by the native batched MCTS backend; "
+            "0 selects all available cores"
+        ),
+    )
     parser.add_argument("--seed", type=int, default=0)
     return parser.parse_args(argv)
 

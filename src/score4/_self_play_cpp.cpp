@@ -10,6 +10,10 @@
 #include <utility>
 #include <vector>
 
+#ifdef _OPENMP
+#include <omp.h>
+#endif
+
 namespace {
 constexpr int N = 4;
 constexpr int ACTIONS = 16;
@@ -142,7 +146,12 @@ PyObject* play_games(PyObject*,PyObject* args){
     PyObject *evaluator,*config,*rng; int count; if(!PyArg_ParseTuple(args,"OOiO",&evaluator,&config,&count,&rng))return nullptr;
     auto attr_i=[&](const char* n){PyObject* x=PyObject_GetAttrString(config,n);long v=PyLong_AsLong(x);Py_XDECREF(x);return (int)v;};
     auto attr_d=[&](const char* n){PyObject* x=PyObject_GetAttrString(config,n);double v=PyFloat_AsDouble(x);Py_XDECREF(x);return v;};
-    int simulations=attr_i("simulations"), temp_moves=attr_i("temperature_moves"), reuse_tree=attr_i("reuse_tree"); double cpuct=attr_d("c_puct"),alpha=attr_d("dirichlet_alpha"),fraction=attr_d("exploration_fraction");
+    int simulations=attr_i("simulations"), temp_moves=attr_i("temperature_moves"), reuse_tree=attr_i("reuse_tree"), mcts_threads=attr_i("mcts_threads"); double cpuct=attr_d("c_puct"),alpha=attr_d("dirichlet_alpha"),fraction=attr_d("exploration_fraction");
+#ifdef _OPENMP
+    if(mcts_threads > 0) omp_set_num_threads(mcts_threads);
+#else
+    if(mcts_threads > 1){PyErr_SetString(PyExc_RuntimeError,"mcts_threads > 1 requires an OpenMP-enabled native extension");return nullptr;}
+#endif
     PyObject* game_mod=PyImport_ImportModule("score4.game"),*sp_mod=PyImport_ImportModule("score4.self_play");if(!game_mod||!sp_mod){Py_XDECREF(game_mod);Py_XDECREF(sp_mod);return nullptr;}
     PyObject* state_cls=PyObject_GetAttrString(game_mod,"Score4State"),*example_cls=PyObject_GetAttrString(sp_mod,"TrainingExample");Py_DECREF(game_mod);Py_DECREF(sp_mod);if(!state_cls||!example_cls){Py_XDECREF(state_cls);Py_XDECREF(example_cls);return nullptr;}
     std::vector<Game> active(std::max(0,count)), finished;
@@ -152,10 +161,21 @@ PyObject* play_games(PyObject*,PyObject* args){
         for(size_t i=0;i<roots.size();++i)expand(*root_games[i]->root,roots[i],ev[i].first);
         for(auto& g:active)noise(*g.root,rng,alpha,fraction);if(PyErr_Occurred())goto error;
         for(int sim=0;sim<std::max(0,simulations);++sim){
-            std::vector<Leaf> leaves;std::vector<State> states;
-            for(auto& g:active){State s=g.state;Node* n=g.root.get();std::vector<Edge*> path;while(!terminal(s)&&!n->edges.empty()){Edge* edge=select_edge(*n,cpuct);path.push_back(edge);s=play(s,edge->action);if(!edge->child)edge->child=std::make_unique<Node>();n=edge->child.get();}if(terminal(s))backup(path,terminal_value(s));else{states.push_back(s);leaves.push_back(Leaf{&g,s,n,std::move(path)});}}
+            std::vector<std::unique_ptr<Leaf>> selected(active.size());
+            std::vector<State> terminal_states(active.size());
+            std::vector<std::vector<Edge*>> terminal_paths(active.size());
+            std::vector<unsigned char> is_terminal(active.size(),0);
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(active.size() > 1)
+#endif
+            for(Py_ssize_t game_index=0;game_index<(Py_ssize_t)active.size();++game_index){auto& g=active[(size_t)game_index];State s=g.state;Node* n=g.root.get();std::vector<Edge*> path;while(!terminal(s)&&!n->edges.empty()){Edge* edge=select_edge(*n,cpuct);path.push_back(edge);s=play(s,edge->action);if(!edge->child)edge->child=std::make_unique<Node>();n=edge->child.get();}if(terminal(s)){terminal_states[(size_t)game_index]=s;terminal_paths[(size_t)game_index]=std::move(path);is_terminal[(size_t)game_index]=1;}else selected[(size_t)game_index]=std::make_unique<Leaf>(Leaf{&g,s,n,std::move(path)});}
+            std::vector<Leaf> leaves;std::vector<State> states;leaves.reserve(active.size());states.reserve(active.size());
+            for(size_t game_index=0;game_index<active.size();++game_index){if(is_terminal[game_index])backup(terminal_paths[game_index],terminal_value(terminal_states[game_index]));else if(selected[game_index]){states.push_back(selected[game_index]->state);leaves.push_back(std::move(*selected[game_index]));}}
             if(!states.empty()&&!evaluate(evaluator,state_cls,states,ev))goto error;
-            for(size_t i=0;i<leaves.size();++i){expand(*leaves[i].node,leaves[i].state,ev[i].first);backup(leaves[i].path,ev[i].second);}
+#ifdef _OPENMP
+#pragma omp parallel for schedule(static) if(leaves.size() > 1)
+#endif
+            for(Py_ssize_t i=0;i<(Py_ssize_t)leaves.size();++i){expand(*leaves[(size_t)i].node,leaves[(size_t)i].state,ev[(size_t)i].first);backup(leaves[(size_t)i].path,ev[(size_t)i].second);}
         }
         std::vector<Game> next;next.reserve(active.size());for(auto& g:active){auto p=visit_policy(*g.root,g.state.ply<temp_moves?1.0:0.0);int a=sample(p,rng);if(PyErr_Occurred())goto error;std::unique_ptr<Node> child;if(reuse_tree){for(auto& edge:g.root->edges)if(edge.action==a){child=std::move(edge.child);break;}}g.history.push_back(History{g.state,p});g.state=play(g.state,a);g.root=child?std::move(child):std::make_unique<Node>();if(terminal(g.state))finished.push_back(std::move(g));else next.push_back(std::move(g));}active=std::move(next);
     }

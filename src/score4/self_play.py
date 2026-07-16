@@ -42,6 +42,7 @@ class SelfPlayConfig:
     dirichlet_alpha: float = 0.3
     exploration_fraction: float = 0.25
     reuse_tree: bool = False
+    mcts_threads: int = 0
 
 
 def play_game(

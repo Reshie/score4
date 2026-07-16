@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "score4-alphazero"
+name = "score4"
 version = "0.1.0"
 description = "AlphaZero-style reinforcement learning for 4x4x4 Score Four."
 readme = "README.md"

@@ -29,6 +29,9 @@ class BatchUniformEvaluator:
 
 
 class BatchedSelfPlayTests(unittest.TestCase):
+    def test_mcts_threads_defaults_to_auto(self) -> None:
+        self.assertEqual(SelfPlayConfig().mcts_threads, 0)
+
     def test_native_backend_status_is_boolean(self) -> None:
         self.assertIsInstance(native_self_play_available(), bool)
 

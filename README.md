@@ -52,6 +52,8 @@ python -m score4.train --resume runs/score4/checkpoint_XXXX.pt
 
 network 評価キャッシュも既定で有効です。メモリを抑えたい場合は `--eval-cache-size 0` を指定してください。MCTS の探索木再利用も試したい場合は `--reuse-tree` を追加できます。
 
+C++ バックエンドでは、batch MCTS の独立した対局を CPU 上で並列に探索します。`--mcts-threads 0`（既定）は利用可能な全 CPU コア、`--mcts-threads 1` は逐次実行、正の整数は使用するスレッド数を指定します。並列化の効果を得るには `--self-play-batch-size` を 2 以上（通常はスレッド数以上）にしてください。
+
 ## モデルと対戦
 
 学習済み checkpoint と対戦できます。
